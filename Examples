@@ -1,0 +1,33 @@
+WITH NUMBERS AS
+(SELECT 
+    trade_in.[DREID_NEW] AS DREID_NEW,
+    trade_in.[TRADEIN_DATE],
+    UniversalActualDataMart_t.[INSTALL_DATE],
+    services.[PRODUCT_NAME] AS PRODUCT_NAME,
+    models.[RELEASE_GROUP] AS RELEASE_GROUP,
+    newdota.[Результат дозвона] AS RESULT,
+    DATEDIFF(DAY, UniversalActualDataMart_t.[INSTALL_DATE], trade_in.[TRADEIN_DATE]) AS DIFF,
+    CASE 
+        WHEN DATEDIFF(DAY, UniversalActualDataMart_t.[INSTALL_DATE], trade_in.[TRADEIN_DATE])<=365 THEN '0-1'
+        WHEN DATEDIFF(DAY, UniversalActualDataMart_t.[INSTALL_DATE], trade_in.[TRADEIN_DATE])>365 AND DATEDIFF(DAY, UniversalActualDataMart_t.[INSTALL_DATE], trade_in.[TRADEIN_DATE])<=1095 THEN '1-3'
+        WHEN DATEDIFF(DAY, UniversalActualDataMart_t.[INSTALL_DATE], trade_in.[TRADEIN_DATE])>1095 AND DATEDIFF(DAY, UniversalActualDataMart_t.[INSTALL_DATE], trade_in.[TRADEIN_DATE])<=1825 THEN '3-5'
+        WHEN DATEDIFF(DAY, UniversalActualDataMart_t.[INSTALL_DATE], trade_in.[TRADEIN_DATE])>1825 AND DATEDIFF(DAY, UniversalActualDataMart_t.[INSTALL_DATE], trade_in.[TRADEIN_DATE])<=3650 THEN '5-10'
+        WHEN DATEDIFF(DAY, UniversalActualDataMart_t.[INSTALL_DATE], trade_in.[TRADEIN_DATE])>3650 THEN '10+'
+    END AS [Periodic]    
+
+FROM [DWH].[dbo].[FR_FCT_AB_TRADEIN_T] trade_in
+INNER JOIN [UADMS].[dbo].[UniversalActualDataMart_t] UniversalActualDataMart_t  ON trade_in.DREID_NEW COLLATE SQL_Latin1_General_CP1_CI_AS =UniversalActualDataMart_t.[DREID]
+INNER JOIN [DWH].[dbo].[FR_DIM_RC_EQUIPMENT_T] equipment ON trade_in.[EQ_ID_PREV]=equipment.[EQ_ID]
+INNER JOIN [DailyReport].[dbo].[FR_DIM_RC_EQ_MODELS_T] models ON equipment.[EMID]=models.[EMID]
+INNER JOIN [DWH].[dbo].[FR_DIM_SR_SERVICES_T] services ON trade_in.PRID COLLATE SQL_Latin1_General_CP1_CI_AS=services.PRID
+LEFT JOIN [DWH].[dbo].[FR_FCT_REP_NEWDOTA_OUT_T] newdota ON trade_in.DREID_PREV COLLATE SQL_Latin1_General_CP1_CI_AS =newdota.DREID
+WHERE YEAR(TRADEIN_DATE)='2022')
+
+SELECT 
+    DREID_NEW,
+    RELEASE_GROUP,
+    PRODUCT_NAME,
+    PERIODIC,
+    RESULT    
+FROM NUMBERS
+ORDER BY DREID_NEW
