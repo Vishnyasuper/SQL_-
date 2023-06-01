@@ -1,0 +1,18 @@
+SELECT 
+    newdota.DREID AS DREID_PREV,
+    trade_in.[DREID_NEW] AS DREID_NEW,
+    newdota.[Дата дозвона],
+    trade_in.[TRADEIN_DATE] AS TRADEIN_DATE,
+    newdota.[INSTALL_DATE],
+    newdota.[Релизная группа] AS RELEASE_GROUP,
+    newdota.[Результат дозвона] AS RESULT,
+    COUNT(newdota.DREID) AS NUMBER_CALLS,
+    COUNT(trade_in.[DREID_NEW]) AS Flag_DREID_NEW,
+    COUNT(newdota.DREID) AS Flag_DREID_PREV,
+    COUNT(trade_in.[DREID_NEW]) Over(PARTITION BY COUNT(newdota.DREID)) AS Itog_DREID_NEW,
+    COUNT(newdota.DREID) Over(PARTITION BY COUNT(newdota.DREID)) AS Itog_DREID_PREV
+
+FROM [DWH].[dbo].[FR_FCT_REP_NEWDOTA_OUT_T] newdota
+LEFT JOIN [DWH].[dbo].[FR_FCT_AB_TRADEIN_T] trade_in ON newdota.DREID = trade_in.DREID_PREV COLLATE SQL_Latin1_General_CP1_CI_AS
+GROUP BY newdota.DREID, trade_in.[DREID_NEW], newdota.[Дата дозвона], trade_in.[TRADEIN_DATE], newdota.[INSTALL_DATE], newdota.[Релизная группа], newdota.[Результат дозвона]
+ORDER BY NUMBER_CALLS DESC
