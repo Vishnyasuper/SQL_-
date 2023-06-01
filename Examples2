@@ -2,10 +2,7 @@ WITH List_AON  AS
     (SELECT             
         AON
         ,tricolor_id
-        ,SDate
-        --,min(SDate) AS Min_SDate
-        --,COUNT([CALLID]) AS Count_CALLID
-      
+        ,SDate  
     FROM [CC].[dbo].[FCT_CC_BOT_DETAIL_T]
     WHERE REP_DATE>='20221201' AND REP_DATE<='20221231' AND ASCII(AON) =57 AND LEN(AON)=10 AND (StartDate IS NULL OR StartDate= '')
     ),
