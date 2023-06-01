@@ -1,0 +1,60 @@
+WITH List_AON  AS
+    (SELECT             
+        AON
+        ,tricolor_id
+        ,SDate
+        --,min(SDate) AS Min_SDate
+        --,COUNT([CALLID]) AS Count_CALLID
+      
+    FROM [CC].[dbo].[FCT_CC_BOT_DETAIL_T]
+    WHERE REP_DATE>='20221201' AND REP_DATE<='20221231' AND ASCII(AON) =57 AND LEN(AON)=10 AND (StartDate IS NULL OR StartDate= '')
+    ),
+
+First_Call AS
+    (SELECT
+        First1.AON AS AON
+        ,First1.tricolor_id AS tricolor_id
+        ,First1.SDate AS SDate
+    FROM List_AON First1
+    LEFT JOIN List_AON First2 
+    ON First1.AON = First2.AON AND First2.SDate < First1.SDate AND DATEDIFF(HOUR, First2.SDate, First1.SDate)<72
+  WHERE First2.AON IS NULL
+    ),
+  First_Call_With_Repeat AS
+    (SELECT DISTINCT
+        First_Call.AON AS AON,
+        First_Call.tricolor_id AS tricolor_id,
+        First_Call.SDate AS SDate
+    FROM First_Call 
+    INNER JOIN List_AON All_Calls ON First_Call.AON = All_Calls.AON AND First_Call.SDate < All_Calls.SDate AND DATEDIFF(HOUR, First_Call.SDate, All_Calls.SDate)<72
+    ),
+
+  First_Call_With_Repeat_And_EndDate AS
+    (
+        SELECT
+           First_Call_With_Repeat.AON AS AON,
+           First_Call_With_Repeat.tricolor_id AS tricolor_id,
+           First_Call_With_Repeat.SDate AS SDate,
+           MIN(First_Call.SDate) AS EndDate
+        FROM First_Call_With_Repeat
+        INNER JOIN First_Call ON First_Call_With_Repeat.AON = First_Call.AON AND First_Call_With_Repeat.SDate < First_Call.SDate
+        GROUP BY First_Call_With_Repeat.AON, First_Call_With_Repeat.tricolor_id, First_Call_With_Repeat.SDate
+    )
+
+SELECT
+    CC_Bot.CALLID,
+    CC_Bot.AON,
+    CC_Bot.tricolor_id,
+    First_Call_With_Repeat_And_EndDate.SDate AS Дата_первого_звонка,
+    CC_Bot.SDate AS Дата_повторного_звонка,
+    CC_Bot.Thematic
+  FROM 
+    First_Call_With_Repeat_And_EndDate
+    INNER JOIN [CC].[dbo].[FCT_CC_BOT_DETAIL_T] CC_Bot
+               ON First_Call_With_Repeat_And_EndDate.AON = CC_Bot.AON AND (CC_Bot.StartDate IS NULL OR CC_Bot.StartDate= '') AND First_Call_With_Repeat_And_EndDate.SDate <= CC_Bot.SDate 
+               AND First_Call_With_Repeat_And_EndDate.EndDate > CC_Bot.SDate
+  --WHERE (CC_Bot.StartDate IS NULL OR CC_Bot.StartDate= '')
+ORDER BY 
+         CC_Bot.CALLID,
+         CC_Bot.AON,
+         CC_Bot.tricolor_id
