@@ -1,0 +1,46 @@
+WITH List_ID_NoConnect AS
+    (SELECT 
+          [tricolor_id]
+          ,[SAP_GPART]
+          ,[REP_DATE]
+          ,TimeToWithCalls
+        
+    FROM [CC].[dbo].[FCT_CC_BOT_DETAIL_T]
+    WHERE REP_DATE Between '20190101' AND '20191231' AND ([QueueLine] IS NOT NULL AND [QueueLine]<>'' AND [QueueLine]<>'Vnutr_line_VQ')
+                               
+    UNION ALL
+    SELECT
+           [tricolor_id]
+          ,[SAP_GPART]
+          ,[REP_DATE]
+          ,TimeToWithCalls
+
+    FROM [CC].[dbo].[FCT_CC_MM_DETAIL_T]
+    WHERE REP_DATE Between '20190101' AND '20191231' AND [MEDIA_SOURCE] IN ('mobile_chat', 'widgets') AND ([QueueLine] IS NOT NULL AND [QueueLine]<>'' AND [QueueLine]<>'Vnutr_line_VQ')),
+
+List_WithoutTime AS 
+    (SELECT
+       [tricolor_id]
+       ,[SAP_GPART]      
+    FROM List_ID_NoConnect
+    GROUP BY [tricolor_id], [SAP_GPART]
+    HAVING SUM(ISNULL(TimeToWithCalls,0))=0)                             
+
+SELECT 
+    devices.CurrentDreid,
+    List_WithoutTime.tricolor_id
+    ,UniversalActual.[CID]
+    ,UniversalActual.[SAT]
+    ,UniversalActual.MSStatus
+    ,Services.[PRODUCT_NAME] AS Тариф
+    ,EQ_MODELS.[BUSINESS_PARK]
+    ,pers_data.[HOME_PHONE]
+    ,pers_data.[MOBILE_PHONE]
+    ,ISNULL(abons_disconnect.EDATE, UniversalActual.[msToDate]) AS EDATE_msToDate
+FROM List_WithoutTime
+LEFT JOIN UADMS.dbo.UADM_devices devices ON List_WithoutTime.SAP_GPART=devices.SapGpart
+LEFT JOIN UADMS.dbo.UniversalActualDataMart_t UniversalActual ON devices.CurrentDreid=UniversalActual.DREID
+LEFT JOIN [DWH].[dbo].[FR_DIM_RC_EQ_MODELS_T] EQ_MODELS ON UniversalActual.[EMID]=EQ_MODELS.[EMID]
+LEFT JOIN [PersData].[dbo].[FR_DIM_AB_SUBSCRIBERS_T] pers_data ON List_WithoutTime.SAP_GPART=pers_data.[SAP_GPART]
+LEFT JOIN [DWH].[dbo].[FR_DIM_SR_SERVICES_T] Services ON UniversalActual.[msPrid]=Services.[PRID]
+LEFT JOIN UADMS.dbo.fc_abons_disconnect_t abons_disconnect ON UniversalActual.SAP_GPART=abons_disconnect.SAP_GPART
